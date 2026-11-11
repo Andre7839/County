@@ -6,8 +6,6 @@
 <title>AquaPredict — California Water Demand</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Mono:wght@400;500&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
-<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <style>
 :root {
   --sand:#f5f0e8; --cream:#faf7f2; --ink:#1a1a14; --ink2:#3d3d30;
@@ -37,8 +35,27 @@ header { background:var(--ink); color:var(--sand); padding:0 28px; height:54px; 
 
 .right { display:flex; flex-direction:column; height:100%; overflow:hidden; }
 #map-wrap { flex:1; position:relative; display:flex; flex-direction:column; min-height:0; }
-#map { flex:1; min-height:300px; width:100%; }
-.leaflet-container { background:#d4e8f5 !important; font-family:'DM Sans',sans-serif !important; }
+#map { flex:1; min-height:300px; width:100%; position:relative; overflow:hidden; background:linear-gradient(180deg,#eaf2f8 0%,#dce8f1 100%); }
+#ca-svg { position:absolute; inset:0; width:100%; height:100%; display:block; }
+.cty { fill:#e6eef4; stroke:#9fb3c4; stroke-width:.9; vector-effect:non-scaling-stroke; stroke-linejoin:round; cursor:pointer; transition:fill .15s; }
+.cty:hover { fill:#bcd7ea; }
+.cty.sel { fill:#1a6fa8; fill-opacity:.8; stroke:#0d4a75; stroke-width:2.2; }
+.map-tools { position:absolute; top:14px; right:14px; z-index:500; display:flex; gap:8px; align-items:center; }
+.seg { display:flex; background:#fff; border:1px solid var(--border); border-radius:8px; overflow:hidden; box-shadow:var(--shadow); }
+.seg button { border:0; background:transparent; padding:7px 12px; font-family:'DM Mono',monospace; font-size:.66rem; color:var(--ink2); cursor:pointer; }
+.seg button:hover { color:var(--water); }
+.seg button.on { background:var(--water); color:#fff; }
+.map-reset { background:#fff; border:1px solid var(--border); border-radius:8px; padding:7px 12px; font-family:'DM Mono',monospace; font-size:.66rem; color:var(--ink2); cursor:pointer; box-shadow:var(--shadow); }
+.map-reset:hover { border-color:var(--water); color:var(--water); }
+.map-hint { position:absolute; left:14px; bottom:12px; z-index:500; font-family:'DM Mono',monospace; font-size:.62rem; color:var(--ink2); background:rgba(255,255,255,.82); padding:3px 8px; border-radius:5px; pointer-events:none; }
+.map-attrib { position:absolute; right:10px; bottom:8px; z-index:500; display:none; font-family:'DM Sans',sans-serif; font-size:.6rem; color:#fff; background:rgba(0,0,0,.45); padding:2px 7px; border-radius:4px; pointer-events:none; }
+.map-note { position:absolute; left:50%; bottom:40px; transform:translateX(-50%); z-index:600; display:none; background:#fff; border:1px solid var(--border); border-radius:8px; padding:7px 14px; font-size:.72rem; color:var(--ink2); box-shadow:var(--shadow); white-space:nowrap; }
+#tile-layer image { pointer-events:none; }
+#map.sat { background:#0b1a24; }
+#map.sat .cty { fill:rgba(255,255,255,0); stroke:rgba(255,255,255,.85); stroke-width:.9; }
+#map.sat .cty:hover { fill:rgba(255,255,255,.2); }
+#map.sat .cty.sel { fill:rgba(74,159,212,.28); stroke:#ffd166; stroke-width:2.6; }
+.map-tip { position:absolute; z-index:600; display:none; pointer-events:none; background:#fff; border:1px solid var(--border); border-radius:4px; padding:2px 7px; font-size:11px; font-family:'DM Mono',monospace; white-space:nowrap; box-shadow:0 1px 5px rgba(0,0,0,.12); }
 
 .map-info { position:absolute; top:14px; left:14px; z-index:500; background:#fff; border-radius:10px; padding:10px 14px; box-shadow:var(--shadow); border:1px solid var(--border); display:none; pointer-events:none; }
 .mi-name { font-family:'DM Serif Display',serif; font-size:.95rem; color:var(--water); margin-bottom:2px; }
@@ -64,6 +81,9 @@ header { background:var(--ink); color:var(--sand); padding:0 28px; height:54px; 
 .sec.closed .sec-body { display:none; }
 .sec-body { padding:14px 18px; }
 
+.useg { display:flex; border:1px solid rgba(255,255,255,.25); border-radius:8px; overflow:hidden; }
+.useg button { background:transparent; color:var(--sand); border:0; padding:5px 12px; font-family:'DM Mono',monospace; font-size:.66rem; letter-spacing:.04em; cursor:pointer; }
+.useg button.on { background:var(--water); color:#fff; }
 /* unit-note pill shown under section header */
 .unit-note { display:inline-flex; align-items:center; gap:5px; background:rgba(26,111,168,.08); border:1px solid rgba(26,111,168,.2); border-radius:20px; padding:3px 10px; font-family:'DM Mono',monospace; font-size:.6rem; color:var(--water); margin-bottom:10px; }
 .unit-note svg { flex-shrink:0; }
@@ -116,7 +136,6 @@ select:focus, input[type=number]:focus { border-color:var(--water); box-shadow:0
 .spin  { width:15px; height:15px; border:2px solid rgba(255,255,255,.3); border-top-color:#fff; border-radius:50%; animation:spin .7s linear infinite; display:none; }
 @keyframes spin { to{ transform:rotate(360deg) } }
 .errmsg { background:#fef2f0; border:1px solid #fca5a5; border-radius:7px; padding:8px 12px; font-size:.76rem; color:#991b1b; margin-top:9px; display:none; }
-.county-tip { background:#fff; border:1px solid var(--border); border-radius:4px; padding:2px 6px; font-size:11px; font-family:'DM Mono',monospace; white-space:nowrap; }
 </style>
 </head>
 <body>
@@ -124,6 +143,10 @@ select:focus, input[type=number]:focus { border-color:var(--water); box-shadow:0
 <header>
   <div class="logo">AquaPredict <span>// California Irrigation Water Demand</span></div>
   <div style="display:flex;align-items:center;gap:10px">
+    <div class="useg" id="useg" title="Display units">
+      <button id="u-metric" onclick="setUnits('metric')">Metric</button>
+      <button id="u-imperial" onclick="setUnits('imperial')">Imperial</button>
+    </div>
     <div class="offline-badge">&#9679; Works Offline</div>
     <div class="hbadge"><div class="dot"></div>ANN · R² 0.955</div>
   </div>
@@ -145,7 +168,7 @@ select:focus, input[type=number]:focus { border-color:var(--water); box-shadow:0
           <div class="cc-name" id="cc-name">—</div>
           <div class="cc-sub"  id="cc-sub">Select a county to begin</div>
           <div class="cc-stats">
-            <div class="cc-st"><div class="sv" id="cc-area">—</div><div class="sl">Total ICA (acres)</div></div>
+            <div class="cc-st"><div class="sv" id="cc-area">—</div><div class="sl">Total ICA (<span class="u-area">acres</span>)</div></div>
             <div class="cc-st"><div class="sv" id="cc-yr">—</div><div class="sl">Year</div></div>
             <div class="cc-st"><div class="sv" id="cc-crop">—</div><div class="sl">Top Crop</div></div>
           </div>
@@ -175,7 +198,7 @@ select:focus, input[type=number]:focus { border-color:var(--water); box-shadow:0
       <div class="sec-body">
         <div class="unit-note">
           <svg width="11" height="11" viewBox="0 0 11 11" fill="none"><circle cx="5.5" cy="5.5" r="5" stroke="#1a6fa8" stroke-width="1"/><path d="M5.5 5V8M5.5 3.5V4" stroke="#1a6fa8" stroke-width="1.2" stroke-linecap="round"/></svg>
-          Enter areas in <strong style="margin:0 3px">acres</strong> — model converts to km² automatically
+          Enter areas in <strong style="margin:0 3px" class="u-area">acres</strong> — model converts to km² automatically
         </div>
         <div class="ica-grid" id="ica-grid"></div>
       </div>
@@ -191,7 +214,7 @@ select:focus, input[type=number]:focus { border-color:var(--water); box-shadow:0
       <div class="sec-body">
         <div class="unit-note">
           <svg width="11" height="11" viewBox="0 0 11 11" fill="none"><circle cx="5.5" cy="5.5" r="5" stroke="#1a6fa8" stroke-width="1"/><path d="M5.5 5V8M5.5 3.5V4" stroke="#1a6fa8" stroke-width="1.2" stroke-linecap="round"/></svg>
-          Precipitation in <strong style="margin:0 3px">mm/year</strong> · Temperatures in <strong style="margin:0 3px">°C</strong>
+          <span id="clim-note">Precipitation in mm/year · Temperatures in °C</span>
         </div>
         <div class="clim-grid" id="clim-grid"></div>
       </div>
@@ -210,7 +233,14 @@ select:focus, input[type=number]:focus { border-color:var(--water); box-shadow:0
 
   <div class="right">
     <div id="map-wrap">
-      <div id="map"></div>
+      <div id="map"><svg id="ca-svg" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="xMidYMid meet" role="img" aria-label="Map of California counties"></svg></div>
+      <div class="map-tools">
+        <button class="map-reset" onclick="resetMapView()">&#10530; Full state view</button>
+      </div>
+      <div class="map-attrib" id="map-attrib">Imagery &copy; Esri, Maxar, Earthstar Geographics</div>
+      <div class="map-note" id="map-note">Satellite imagery needs an internet connection &mdash; showing outlines only.</div>
+      <div class="map-tip" id="map-tip"></div>
+      <div class="map-hint">Click a county to select it</div>
       <div class="map-info" id="map-info">
         <div class="mi-name" id="mi-name"></div>
         <div class="mi-yr"   id="mi-yr"></div>
@@ -222,9 +252,9 @@ select:focus, input[type=number]:focus { border-color:var(--water); box-shadow:0
         <div class="rb-val" id="rb-val"><span class="rb-ph">Select a county then click Predict</span></div>
       </div>
       <div class="rb-metrics" id="rb-metrics">
-        <div class="rbm"><div class="v" id="m-mcm">—</div><div class="l">MCM</div></div>
-        <div class="rbm"><div class="v" id="m-m3">—</div><div class="l">Million m³</div></div>
-        <div class="rbm"><div class="v" id="m-af">—</div><div class="l">K Acre-ft</div></div>
+        <div class="rbm"><div class="v" id="m-mcm">—</div><div class="l" id="l-mcm">MCM</div></div>
+        <div class="rbm"><div class="v" id="m-m3">—</div><div class="l" id="l-m3">Million m³</div></div>
+        <div class="rbm"><div class="v" id="m-af">—</div><div class="l" id="l-af">K Acre-ft</div></div>
         <div class="rbm"><div class="v" id="m-cy">—</div><div class="l">County / Year</div></div>
       </div>
     </div>
@@ -268,42 +298,93 @@ var ICA_COLS = [
   'PO_ICA','TR_ICA','AP_ICA','OR_ICA','CS_ICA','VI_ICA','MC_ICA'
 ];
 
-// Display units and model-input conversion for each climate variable
-// toModel(displayValue) → value the model expects
+// ═══════════════════════════════════════════════════════
+// UNIT SYSTEMS  (the model always works in km², mm/day, K, m/s)
+// ═══════════════════════════════════════════════════════
+var UNITS = 'metric';
+var HA_PER_KM2 = 100;
+function areaFactor() { return UNITS === 'imperial' ? KM2_TO_ACRES : HA_PER_KM2; }
+function areaUnit()   { return UNITS === 'imperial' ? 'acres' : 'ha'; }
+var MPH_PER_MS = 2.23694;
+
+// toDisp(modelValue) → display value ; toModel(displayValue) → model value
 var CLIM = [
-  { key:'Pr',   label:'Precipitation',   unit:'mm/yr',
-     toModel: function(v) { return v / 365; },         // mm/yr → mm/day
-     fromData: function(d) { return d.Pr * 365; },     // mm/day → mm/yr for display
-     step:'0.1', isPr:true },
-  { key:'Rmax', label:'Max Humidity',    unit:'%',
-     toModel: function(v) { return v; },
-     fromData: function(d) { return d.Rmax; },
-     step:'0.01' },
-  { key:'Rmin', label:'Min Humidity',    unit:'%',
-     toModel: function(v) { return v; },
-     fromData: function(d) { return d.Rmin; },
-     step:'0.01' },
-  { key:'Srad', label:'Solar Radiation', unit:'W/m²',
-     toModel: function(v) { return v; },
-     fromData: function(d) { return d.Srad; },
-     step:'0.01' },
-  { key:'Wspd', label:'Wind Speed',      unit:'m/s',
-     toModel: function(v) { return v; },
-     fromData: function(d) { return d.Wspd; },
-     step:'0.001' },
-  { key:'Tmmn', label:'Min Temperature', unit:'°C',
-     toModel: function(v) { return v + 273.15; },      // °C → K
-     fromData: function(d) {                             // K → °C
-       return d.Tmmn_C !== undefined ? d.Tmmn_C : d.Tmmn - 273.15;
-     },
-     step:'0.01', isTemp:true },
-  { key:'Tmmx', label:'Max Temperature', unit:'°C',
-     toModel: function(v) { return v + 273.15; },
-     fromData: function(d) {
-       return d.Tmmx_C !== undefined ? d.Tmmx_C : d.Tmmx - 273.15;
-     },
-     step:'0.01', isTemp:true }
+  { key:'Pr', label:'Precipitation', isPr:true, dec:function(){return UNITS==='imperial'?2:1;},
+     unit:function(){return UNITS==='imperial'?'in/yr':'mm/yr';},
+     toDisp:function(v){ var y=v*365; return UNITS==='imperial'? y/25.4 : y; },       // mm/day → yr
+     toModel:function(v){ return (UNITS==='imperial'? v*25.4 : v)/365; } },
+  { key:'Rmax', label:'Max Humidity', dec:function(){return 2;}, unit:function(){return '%';},
+     toDisp:function(v){return v;}, toModel:function(v){return v;} },
+  { key:'Rmin', label:'Min Humidity', dec:function(){return 2;}, unit:function(){return '%';},
+     toDisp:function(v){return v;}, toModel:function(v){return v;} },
+  { key:'Srad', label:'Solar Radiation', dec:function(){return 2;}, unit:function(){return 'W/m²';},
+     toDisp:function(v){return v;}, toModel:function(v){return v;} },
+  { key:'Wspd', label:'Wind Speed', dec:function(){return UNITS==='imperial'?3:4;},
+     unit:function(){return UNITS==='imperial'?'mph':'m/s';},
+     toDisp:function(v){ return UNITS==='imperial'? v*MPH_PER_MS : v; },
+     toModel:function(v){ return UNITS==='imperial'? v/MPH_PER_MS : v; } },
+  { key:'Tmmn', label:'Min Temperature', isTemp:true, dec:function(){return 2;},
+     unit:function(){return UNITS==='imperial'?'°F':'°C';},
+     toDisp:function(k){ var c=k-273.15; return UNITS==='imperial'? c*9/5+32 : c; },
+     toModel:function(v){ var c=UNITS==='imperial'? (v-32)*5/9 : v; return c+273.15; } },
+  { key:'Tmmx', label:'Max Temperature', isTemp:true, dec:function(){return 2;},
+     unit:function(){return UNITS==='imperial'?'°F':'°C';},
+     toDisp:function(k){ var c=k-273.15; return UNITS==='imperial'? c*9/5+32 : c; },
+     toModel:function(v){ var c=UNITS==='imperial'? (v-32)*5/9 : v; return c+273.15; } }
 ];
+
+// Read the form (current display units) → model features [21 ICA km², 7 climate]
+function readModelFeatures() {
+  var f = [];
+  ICA_COLS.forEach(function(col) {
+    var el = document.getElementById('ica-' + col);
+    f.push((el ? (parseFloat(el.value) || 0) : 0) / areaFactor());
+  });
+  CLIM.forEach(function(c) {
+    var el = document.getElementById('clim-' + c.key);
+    f.push(c.toModel(el ? (parseFloat(el.value) || 0) : 0));
+  });
+  return f;
+}
+// Write model features → form in the current display units
+function writeModelFeatures(f) {
+  ICA_COLS.forEach(function(col, i) {
+    var el = document.getElementById('ica-' + col);
+    if (el) el.value = (f[i] * areaFactor()).toFixed(1);
+  });
+  CLIM.forEach(function(c, j) {
+    var el = document.getElementById('clim-' + c.key);
+    if (el) el.value = c.toDisp(f[ICA_COLS.length + j]).toFixed(c.dec());
+  });
+}
+function recordFeatures(d) {
+  return ICA_COLS.map(function(c){return d[c]||0;}).concat(CLIM.map(function(c){return d[c.key];}));
+}
+
+var lastKm3 = null;
+function refreshUnitLabels() {
+  document.getElementById('u-metric').classList.toggle('on', UNITS==='metric');
+  document.getElementById('u-imperial').classList.toggle('on', UNITS==='imperial');
+  document.querySelectorAll('.u-area, .ica-u').forEach(function(e){ e.textContent = areaUnit(); });
+  CLIM.forEach(function(c) {
+    var el = document.getElementById('clim-' + c.key);
+    if (el && el.nextElementSibling) el.nextElementSibling.textContent = c.unit();
+  });
+  document.getElementById('clim-note').textContent = UNITS==='imperial'
+    ? 'Precipitation in inches/year · Temperatures in °F · Wind in mph'
+    : 'Precipitation in mm/year · Temperatures in °C · Wind in m/s';
+  document.querySelectorAll('.ica-f input').forEach(function(i){ i.step = UNITS==='imperial' ? '1' : '0.5'; });
+}
+function setUnits(u) {
+  if (u === UNITS) return;
+  var f = readModelFeatures();            // keep any user edits
+  UNITS = u;
+  try { localStorage.setItem('aquapredict-units', u); } catch(e) {}
+  refreshUnitLabels();
+  writeModelFeatures(f);
+  if (selCounty) updateCountyCard(selCounty, selYear);
+  if (lastKm3 !== null) displayResult(lastKm3);
+}
 
 var YEARS = [1998,1999,2000,2001,2002,2003,2004,2005,2006,2007,
              2008,2009,2010,2011,2012,2013,2014,2015];
@@ -336,7 +417,8 @@ function annPredict(inputArray) {
 // ═══════════════════════════════════════════════════════
 var selCounty = '';
 var selYear   = 2010;
-var leafMap, geojsonLayer;
+var countyEls = {};
+var curView = null, viewAnim = null;
 
 // ═══════════════════════════════════════════════════════
 // INIT
@@ -344,8 +426,10 @@ var leafMap, geojsonLayer;
 document.addEventListener('DOMContentLoaded', function() {
   buildCountyDropdown();
   buildYearPills();
+  try { var su = localStorage.getItem('aquapredict-units'); if (su === 'imperial' || su === 'metric') UNITS = su; } catch(e) {}
   buildICAGrid();
   buildClimGrid();
+  refreshUnitLabels();
   initMap();
 });
 
@@ -387,7 +471,7 @@ function buildICAGrid() {
       '</div>' +
       '<div class="ica-w">' +
         '<input type="number" id="ica-' + col + '" value="0" min="0" step="1" placeholder="0">' +
-        '<span class="ica-u">acres</span>' +
+        '<span class="ica-u">' + areaUnit() + '</span>' +
       '</div>';
     grid.appendChild(div);
   });
@@ -402,8 +486,8 @@ function buildClimGrid() {
     div.innerHTML =
       '<div class="clim-name">' + c.label + '</div>' +
       '<div class="clim-w">' +
-        '<input type="number" id="clim-' + c.key + '" value="0" step="' + (c.step||'0.01') + '">' +
-        '<span class="' + unitClass + '">' + c.unit + '</span>' +
+        '<input type="number" id="clim-' + c.key + '" value="0" step="any">' +
+        '<span class="' + unitClass + '">' + c.unit() + '</span>' +
       '</div>';
     grid.appendChild(div);
   });
@@ -412,50 +496,191 @@ function buildClimGrid() {
 // ═══════════════════════════════════════════════════════
 // MAP
 // ═══════════════════════════════════════════════════════
-function initMap() {
-  leafMap = L.map('map', { center:[37.5,-119.5], zoom:6, zoomControl:true, attributionControl:false });
-  L.tileLayer('https://{s}.basemaps.cartocdn.com/light_nolabels/{z}/{x}/{y}{r}.png', { maxZoom:19 }).addTo(leafMap);
+// California county outlines (US Census via us-atlas), pre-projected to Web Mercator
+// "world units" (world = 65536 units wide, i.e. 1 unit = 1 px at zoom 8), so satellite
+// tiles line up exactly. The outline map is embedded and needs no internet.
+var CA_MAP = {"world":65536,"full":[10119.7,24325.7,11990.5,26498.7],"counties":[{"name":"San Benito","d":"M10623.5,25532.7L10626.1,25528.6L10634.6,25531.6L10638.5,25532L10651.6,25512.4L10658.2,25511.2L10664.7,25517.5L10701.3,25517.5L10698,25525.3L10704.5,25528L10713,25539.2L10715,25545.8L10752.9,25565L10755.5,25567.7L10813,25624.8L10814.3,25660.9L10802.6,25663.8L10799.3,25674.7L10786.9,25665L10792.1,25676.5L10794.1,25689.1L10784.3,25689.3L10765.3,25669.1L10754.2,25665.4L10749,25673L10743.1,25669.1L10738.5,25674.9L10738.5,25674.9L10733.9,25673.2L10733.3,25665.2L10726.8,25655.3L10698.7,25627.3L10696.7,25620.9L10683.6,25621.7L10686.9,25615.6L10681,25609.8L10682.3,25597.1L10674.5,25586.8L10655.5,25580.2L10652.3,25573.9L10658.2,25571.6L10653.6,25562.6L10645.7,25560.7L10632,25545.6L10627.4,25543.7Z","bbox":[10623.5,25511.2,10814.3,25689.3]},{"name":"Shasta","d":"M10468,24527.1L10563.7,24526.7L10659.5,24526.9L10680.4,24526.7L10680.4,24593.9L10682.3,24593.9L10681,24704.4L10650.3,24704.4L10622.9,24706.9L10615.7,24702.5L10607.2,24706.4L10585.6,24705L10569.3,24711.6L10556.9,24708.9L10541.8,24712.2L10541.8,24712.2L10534,24715.7L10495.5,24722.1L10474.5,24721L10463.4,24717.5L10439.3,24732.3L10421.6,24723.7L10402.7,24728.8L10399.4,24727.6L10391.6,24737.4L10388.3,24736.2L10388.3,24736.2L10379.1,24736.2L10379.1,24736.2L10364.8,24742.2L10364.1,24730.7L10372.6,24722.9L10377.8,24710.8L10394.8,24704L10405.3,24689.8L10413.1,24688.4L10419,24678.1L10431.4,24674.2L10429.5,24660.8L10421.6,24646.5L10430.1,24637.5L10427.5,24633.3L10438.6,24622.8L10437.3,24612.9L10448.4,24597.6L10449.1,24577.9L10462.8,24566.1L10465.4,24550.1L10474.5,24547.7L10477.2,24532.7Z","bbox":[10364.1,24526.7,10682.3,24742.2]},{"name":"Sierra","d":"M10739.2,24896L10749.6,24888.5L10752.9,24872L10764,24863.7L10774.5,24871.4L10779,24879.3L10785.6,24877.1L10798.6,24886.9L10806.5,24880.2L10896,24880L10919.5,24879.5L10922.1,24876.3L10922.1,24941.8L10831.3,24941.6L10825.4,24937.6L10821.5,24925.6L10815.6,24923.4L10799.3,24924.6L10787.5,24938L10777.1,24943.7L10766.6,24944.5L10766.6,24944.5L10762.7,24945.5L10762.7,24945.5L10741.1,24949.5L10736.6,24954.6L10734.6,24925.6L10730,24920.2L10735.9,24915.1Z","bbox":[10730,24863.7,10922.1,24954.6]},{"name":"Fresno","d":"M10824.1,25498.5L10830,25506.9L10840.5,25528.8L10839.8,25539.8L10855.5,25551.7L10855.5,25557.6L10881,25561.1L10908.4,25548.4L10917.6,25550.7L10925.4,25544.9L10933.2,25546.4L10943.7,25540.8L10956.8,25542.7L10960.7,25532.3L10971.1,25520.8L10969.8,25515.3L10977,25507.5L10982.9,25506.5L10986.2,25499.1L10992,25502.4L10994.7,25492.4L11002.5,25493.4L11007.1,25484.6L11001.8,25482.2L11004.5,25475.5L11009,25479.3L11015.6,25476.9L11016.9,25483.4L11026.7,25471.2L11034.5,25474.4L11045,25460.8L11043.7,25437L11047.6,25428.2L11100.5,25374.6L11109,25381.1L11120.1,25382.7L11131.9,25399.8L11141.7,25396.9L11145.6,25402.8L11148.2,25409.1L11143.6,25420.3L11144.9,25431.9L11160.6,25440L11165.2,25449.8L11161.9,25456.1L11169.1,25476.7L11178.3,25477.1L11190,25483.4L11207,25496.1L11210.3,25510.4L11220.1,25532.5L11220.1,25545.1L11215.5,25546.6L11221.4,25566.7L11107.7,25567.3L11107.7,25586.6L11049.5,25585.8L11048.9,25605.5L11020.1,25605.1L11000.5,25624.8L10983.5,25640.5L10982.2,25637.8L10968.5,25641.1L10967.2,25644.4L10930,25644.6L10930,25694.1L10865.3,25756L10857.4,25743.2L10843.7,25742.1L10835.2,25732.8L10824.1,25726.8L10815,25718.9L10813,25712.1L10804.5,25710.8L10800.6,25698L10808.4,25689.3L10798.6,25678.4L10799.3,25674.7L10802.6,25663.8L10814.3,25660.9L10813,25624.8L10755.5,25567.7L10803.2,25519.2L10815,25519.4L10813.7,25508.9Z","bbox":[10755.5,25374.6,11221.4,25756]},{"name":"Amador","d":"M10735.9,25161.3L10751.6,25156.5L10754.2,25159.7L10769.2,25150.3L10783.6,25150.7L10808.4,25162.3L10826.7,25160.9L10854.2,25152.7L10865.9,25152.5L10880.3,25140.9L10884.2,25133.1L10898,25129.7L10900.6,25117.3L10909.7,25115.9L10909.7,25160.9L10894.7,25164.5L10886.2,25163.1L10871.8,25168.9L10852.9,25172.1L10847,25169.3L10839.1,25175.5L10832,25175.3L10826.7,25181.1L10811,25188.7L10807.8,25199L10775.8,25212.6L10759.4,25227.9L10741.1,25226.9L10735.9,25209.6Z","bbox":[10735.9,25115.9,10909.7,25227.9]},{"name":"El Dorado","d":"M10922.1,25030.7L10922.8,25046.6L10939.8,25062.1L10945,25077L10929.3,25098.8L10909.7,25115.9L10900.6,25117.3L10898,25129.7L10884.2,25133.1L10880.3,25140.9L10865.9,25152.5L10854.2,25152.7L10826.7,25160.9L10808.4,25162.3L10783.6,25150.7L10769.2,25150.3L10754.2,25159.7L10751.6,25156.5L10735.9,25161.3L10718.9,25112.7L10715,25113.9L10722.2,25096.6L10722.2,25089.6L10729.4,25082.6L10733.3,25066.3L10751.6,25061.5L10751.6,25055.3L10766.6,25057.7L10775.1,25046.4L10790.1,25045.6L10805.8,25059.5L10818.2,25066.5L10829.3,25062.7L10837.2,25054.7L10843.7,25039.8L10879,25041L10889.5,25039.2L10896.6,25030.7Z","bbox":[10715,25030.7,10945,25162.3]},{"name":"Monterey","d":"M10592.8,25542.5L10597.4,25534.7L10613.1,25526.9L10623.5,25532.7L10627.4,25543.7L10632,25545.6L10645.7,25560.7L10653.6,25562.6L10658.2,25571.6L10652.3,25573.9L10655.5,25580.2L10674.5,25586.8L10682.3,25597.1L10681,25609.8L10686.9,25615.6L10683.6,25621.7L10696.7,25620.9L10698.7,25627.3L10726.8,25655.3L10733.3,25665.2L10733.9,25673.2L10738.5,25674.9L10738.5,25674.9L10743.1,25669.1L10749,25673L10754.2,25665.4L10765.3,25669.1L10784.3,25689.3L10794.1,25689.1L10792.1,25676.5L10786.9,25665L10799.3,25674.7L10798.6,25678.4L10808.4,25689.3L10800.6,25698L10804.5,25710.8L10813,25712.1L10815,25718.9L10824.1,25726.8L10835.2,25732.8L10843.7,25742.1L10857.4,25743.2L10865.3,25756L10872.5,25756.2L10879,25765.3L10875.7,25769.9L10882.3,25775.7L10883.6,25782.4L10801.6,25781.8L10719.6,25781.5L10677.8,25781.1L10665.3,25767.6L10656.2,25760.8L10652.3,25741.7L10649,25734.9L10635.9,25729.3L10626.1,25709.2L10609.8,25691L10588.2,25678.6L10581,25669.9L10575.8,25654.3L10576.5,25646.2L10569.3,25626.5L10570.6,25608.6L10563.4,25605.5L10569.9,25591.1L10581.7,25598.5L10587.6,25592.7L10592.2,25580.8L10597.4,25553.3Z","bbox":[10563.4,25526.9,10883.6,25782.4]},{"name":"San Bernardino","d":"M11347.5,25998L11354,25998.2L11354,25858.2L11353.4,25813.2L11356.6,25806.7L11350.1,25806.7L11353.4,25800.1L11353.4,25780.7L11442.9,25780.7L11532.4,25781.1L11615.7,25781.1L11699,25781.5L11699,25778L11714.7,25777.8L11757.8,25819.2L11803.6,25864.2L11899.6,25958.3L11899,25986.4L11909.4,25997.3L11914,26010.4L11929,26022.4L11946,26067.8L11944.7,26078.8L11953.2,26080.1L11973.5,26099.1L11982.6,26102.7L11989.8,26112.9L11990.5,26122.2L11974.1,26134.5L11973.5,26138.1L11962.4,26142L11955.8,26149.6L11938.2,26156.8L11935.6,26162.1L11855.5,26162.1L11775.5,26162.4L11775.5,26172.1L11666.7,26171.8L11557.9,26172.3L11481.4,26172.1L11481.4,26178.5L11429.8,26178.7L11427.9,26175.5L11401.1,26175.3L11400.4,26172.1L11367.1,26172.3L11367.1,26182.1L11358,26185.8L11357.3,26196L11349.5,26196.2L11346.2,26207.9L11325.9,26191.3L11322.7,26184.9L11329.2,26174.5L11335.7,26174.9L11345.5,26143L11351.4,26115.9L11350.1,26105L11347.5,26056.6Z","bbox":[11322.7,25777.8,11990.5,26207.9]},{"name":"Tehama","d":"M10379.1,24736.2L10379.1,24736.2L10388.3,24736.2L10388.3,24736.2L10391.6,24737.4L10399.4,24727.6L10402.7,24728.8L10421.6,24723.7L10439.3,24732.3L10463.4,24717.5L10474.5,24721L10495.5,24722.1L10534,24715.7L10541.8,24712.2L10541.8,24712.2L10556.9,24708.9L10569.3,24711.6L10585.6,24705L10607.2,24706.4L10615.7,24702.5L10622.9,24706.9L10650.3,24704.4L10654.9,24726.8L10671.2,24729.4L10678.4,24736.8L10671.9,24739.5L10677.1,24744.8L10673.8,24760L10666.6,24765.1L10660.8,24764.1L10660.8,24774.5L10658.2,24781.5L10647.7,24786.6L10634,24786.6L10632,24796.8L10624.8,24804.4L10622.9,24814.8L10612.4,24814.4L10604.6,24825.2L10603.9,24832.7L10594.1,24838L10550.3,24838.2L10545.8,24848.4L10550.3,24858.6L10469,24858.3L10387.6,24858.4L10383.7,24847.4L10385.7,24832.5L10390.9,24830.3L10388.3,24815.8L10385,24810.9L10383.7,24786.8L10378.5,24775.9L10381.8,24766.1L10380.5,24753L10367.4,24746.7L10364.8,24742.2Z","bbox":[10364.8,24702.5,10678.4,24858.6]},{"name":"Nevada","d":"M10736.6,24954.6L10741.1,24949.5L10762.7,24945.5L10762.7,24945.5L10766.6,24944.5L10766.6,24944.5L10777.1,24943.7L10787.5,24938L10799.3,24924.6L10815.6,24923.4L10821.5,24925.6L10825.4,24937.6L10831.3,24941.6L10922.1,24941.8L10921.5,24972.2L10863.3,24972.3L10805.2,24972.6L10790.1,24978.9L10776.4,24991.8L10766.6,24998L10764.7,25004.1L10757.5,25006.5L10744.4,25020.6L10742.4,25028.5L10733.3,25043.2L10721.5,25043.8L10715.7,25037.6L10706.5,25043.4L10689.5,25038.4L10689.5,24992.4L10692.1,24982.5L10700.6,24980.3L10703.2,24972.2L10717.6,24957.2L10725.5,24953.8Z","bbox":[10689.5,24923.4,10922.1,25043.8]},{"name":"Tuolumne","d":"M10918.9,25178.7L10943.7,25196.7L10958.7,25186.1L10967.9,25182.5L10977.7,25184.1L10977,25194.5L10988.1,25203.4L10986.8,25213.6L10994.7,25224.4L10990.1,25233.5L11011,25247.4L11014.3,25243.5L11023.4,25256.8L11026.7,25253.2L11040.4,25259.6L11048.9,25272.1L11046.3,25286.4L11049.5,25291.9L11065.9,25302.4L11065.2,25312.7L11067.8,25326.6L11055.4,25339.2L11048.2,25330.3L11035.8,25316.1L11026.7,25309.9L11014.9,25310.7L11008.4,25303.8L10999.9,25303.2L10994.7,25311.9L10986.2,25316.3L10986.2,25320.6L10968.5,25330.9L10956.8,25335.1L10947,25331.5L10933.9,25333.7L10918.2,25322.6L10907.8,25318.9L10899.3,25329.5L10889.5,25326.4L10888.8,25332.1L10879,25333.5L10875.1,25340.4L10860.1,25342.2L10866.6,25356.4L10862.7,25359.8L10851.6,25352.1L10852.2,25363.5L10803.9,25317.9L10807.8,25311.1L10824.8,25296.3L10828.7,25288.1L10824.1,25285L10828.7,25278.2L10837.8,25276L10839.8,25269.5L10860.7,25238.9L10875.7,25213L10884.9,25203.4L10894.7,25189.3Z","bbox":[10803.9,25178.7,11067.8,25363.5]},{"name":"Santa Barbara","d":"M11094,26291L11099.2,26289.6L11099.9,26297.3L11092.7,26296ZM10937.2,26162.6L10948.9,26164L10957.4,26168.1L10967.2,26167.2L10979.6,26175.3L10992,26176L10996.6,26168.7L11009.7,26172.4L11002.5,26180.6L10984.2,26182.6L10973.1,26188.5L10945.7,26184L10945,26172.4ZM10877.7,26179.2L10892.1,26177.7L10898,26173.8L10906.4,26175.3L10914.9,26171.7L10914.9,26180.7L10926.7,26183.2L10927.4,26192.2L10900.6,26202.4L10890.1,26195.5ZM10841.1,26171.3L10851.6,26168.1L10855.5,26162.8L10859.4,26169.4L10867.9,26174.3L10854.2,26175.5ZM10804.5,25964.3L10809.1,25966.7L10831.3,25960.4L10843.7,25961.6L10868.5,25978.6L10869.2,25970.6L10861.4,25958L10875.1,25953L10875.1,25953L10884.2,25954L10889.5,25950.3L10892.1,25941.9L10899.3,25937.5L10899.3,25937.5L10907.1,25933.5L10928,25946.1L10935.9,25945.5L10948.9,25951.7L10953.5,25957L10968.5,25964.3L10982.2,25964.6L10992.7,25969.6L11007.1,25981.4L11018.8,25980.7L11024.1,25980.7L11024.1,26077.5L11023.4,26090.6L11017.5,26096.6L11003.2,26088.7L10982.2,26087.9L10971.8,26092.4L10960,26087.7L10945.7,26089.6L10921.5,26078.2L10906.4,26078.2L10896.6,26075.4L10867.9,26076.7L10836.5,26080.9L10835.9,26075L10827.4,26062.5L10816.9,26056.8L10809.1,26057.5L10805.2,26051.5L10813.7,26024.3L10806.5,26012.9L10811.7,25990.2L10800.6,25979.9Z","bbox":[10800.6,25933.5,11099.9,26297.3]},{"name":"Trinity","d":"M10302,24527.7L10322.3,24537.1L10332.1,24552.4L10353.7,24552.6L10367.4,24561.6L10370.7,24570.1L10381.8,24568.2L10388.3,24573L10394.8,24564.9L10390.9,24555.3L10382.4,24550.1L10385,24534.6L10396.1,24522.1L10413.1,24520.9L10426.8,24507.8L10438,24500.7L10440.6,24494.2L10451.7,24490.5L10458.2,24483.6L10470,24492.8L10465.4,24504L10464.7,24521.7L10468,24527.1L10477.2,24532.7L10474.5,24547.7L10465.4,24550.1L10462.8,24566.1L10449.1,24577.9L10448.4,24597.6L10437.3,24612.9L10438.6,24622.8L10427.5,24633.3L10430.1,24637.5L10421.6,24646.5L10429.5,24660.8L10431.4,24674.2L10419,24678.1L10413.1,24688.4L10405.3,24689.8L10394.8,24704L10377.8,24710.8L10372.6,24722.9L10364.1,24730.7L10364.8,24742.2L10367.4,24746.7L10380.5,24753L10381.8,24766.1L10378.5,24775.9L10383.7,24786.8L10385,24810.9L10388.3,24815.8L10277.2,24816L10277.2,24810.1L10277.2,24644.9L10277.9,24635.2L10272,24605.7L10263.5,24588.7L10273.9,24583.5L10286.4,24591.4L10294.9,24585L10294.9,24579.2L10302,24566.5L10298.8,24556.4L10293.5,24554.5L10298.1,24535Z","bbox":[10263.5,24483.6,10477.2,24816]},{"name":"Stanislaus","d":"M10654.9,25398.3L10654.9,25398.5L10696.7,25356.6L10714.3,25344.2L10730,25336.7L10735.3,25338.8L10741.1,25334.5L10754.9,25339.6L10754.2,25261.1L10763.4,25272.5L10803.9,25317.9L10852.2,25363.5L10743.7,25417.2L10747,25429.6L10699.3,25477.9L10689.5,25466.7L10681,25470.6L10675.8,25466.5L10669.3,25474.8L10664.7,25460.4L10657.5,25451.6L10656.8,25443.9L10666.6,25437.6L10663.4,25426.6L10666,25421.3L10657.5,25418.2L10654.9,25411.9Z","bbox":[10654.9,25261.1,10852.2,25477.9]},{"name":"Colusa","d":"M10424.2,24956.4L10534,24956L10534,24949.1L10556.9,24949.3L10556.9,24956.4L10578.4,24956.4L10575.2,24975.2L10568,24990.2L10571.9,24999.9L10568.6,25004.3L10579.1,25029.5L10586.3,25029.9L10590.8,25039L10591.5,25049.2L10588.2,25064.1L10496.8,25064.3L10484.3,25055.3L10483,25041.8L10468.7,25033.7L10467.4,25018L10471.9,25005.7L10464.7,24997.4L10454.3,24998.6L10434.7,24990.6L10421,24979.7L10417.7,24973.4Z","bbox":[10417.7,24949.1,10591.5,25064.3]},{"name":"Alpine","d":"M10909.7,25160.9L10909.7,25115.9L10929.3,25098.8L10945,25077L10939.8,25062.1L10997.9,25113.5L10992.7,25124.5L10992,25138.9L11005.8,25163.3L11002.5,25183.9L10991.4,25187.9L10994,25194.3L10988.1,25203.4L10977,25194.5L10977.7,25184.1L10967.9,25182.5L10958.7,25186.1L10943.7,25196.7L10918.9,25178.7L10909.7,25175.5Z","bbox":[10909.7,25062.1,11005.8,25203.4]},{"name":"Siskiyou","d":"M10282.4,24327.8L10313.1,24328.2L10334.7,24327.2L10349.7,24325.7L10368,24327.4L10443.2,24327L10467.4,24325.9L10505.9,24326.1L10558.8,24327.2L10659.5,24328.9L10657.5,24340.4L10657.5,24382.9L10658.8,24382.9L10658.8,24467.1L10659.5,24526.9L10563.7,24526.7L10468,24527.1L10464.7,24521.7L10465.4,24504L10470,24492.8L10458.2,24483.6L10451.7,24490.5L10440.6,24494.2L10438,24500.7L10426.8,24507.8L10413.1,24520.9L10396.1,24522.1L10385,24534.6L10382.4,24550.1L10390.9,24555.3L10394.8,24564.9L10388.3,24573L10381.8,24568.2L10370.7,24570.1L10367.4,24561.6L10353.7,24552.6L10332.1,24552.4L10322.3,24537.1L10302,24527.7L10296.8,24516.3L10290.3,24482.6L10285.1,24478.6L10256.3,24478.8L10264.8,24463.2L10257.6,24440.6L10250.4,24436L10252.4,24427.7L10245.8,24427L10251.7,24414.9L10256.3,24395L10253,24390.2L10253.7,24377.8L10248.5,24370.9L10258.3,24362.1L10259.6,24355.6L10266.8,24356.6L10273.9,24351.4Z","bbox":[10245.8,24325.7,10659.5,24573]},{"name":"Del Norte","d":"M10155.7,24328.4L10226.9,24329.1L10257,24329.3L10282.4,24327.8L10273.9,24351.4L10266.8,24356.6L10259.6,24355.6L10258.3,24362.1L10248.5,24370.9L10253.7,24377.8L10253,24390.2L10256.3,24395L10251.7,24414.9L10245.8,24427L10252.4,24427.7L10250.4,24436L10257.6,24440.6L10264.8,24463.2L10256.3,24478.8L10236,24479L10236,24458.8L10182.5,24458.6L10179.9,24438.5L10170.1,24411.8L10164.8,24391.7L10158.9,24392.5L10147.8,24381.2L10154.4,24365.7L10157.6,24342.5Z","bbox":[10147.8,24327.8,10282.4,24479]},{"name":"Inyo","d":"M11145.6,25402.8L11231.5,25402.3L11317.4,25402.2L11378.1,25458.7L11438.3,25515.1L11522,25593.8L11604.9,25672.6L11678.8,25743L11714.7,25777.8L11699,25778L11699,25781.5L11615.7,25781.1L11532.4,25781.1L11442.9,25780.7L11353.4,25780.7L11300.5,25780.5L11300.5,25783L11285.4,25782.4L11286.1,25765.8L11290,25764.9L11288,25747.7L11283.5,25743.8L11285.4,25737.3L11280.9,25733L11277.6,25717.1L11274.3,25713.1L11276.3,25699.3L11268.4,25688.1L11263.9,25667.1L11268.4,25658.6L11258,25647.5L11260.6,25640L11248.2,25637.4L11242.3,25626.7L11241.6,25614.5L11233.8,25608.8L11234.5,25598.7L11228.6,25593.3L11220.1,25578.6L11226,25575.5L11221.4,25566.7L11215.5,25546.6L11220.1,25545.1L11220.1,25532.5L11210.3,25510.4L11207,25496.1L11190,25483.4L11178.3,25477.1L11169.1,25476.7L11161.9,25456.1L11165.2,25449.8L11160.6,25440L11144.9,25431.9L11143.6,25420.3L11148.2,25409.1Z","bbox":[11143.6,25402.2,11714.7,25783]},{"name":"San Joaquin","d":"M10635.3,25257.4L10634,25251.4L10643.1,25244L10644.4,25234.3L10652.9,25220.4L10662.7,25220.2L10666,25225.5L10677.8,25226.3L10691.5,25220.8L10700,25222.6L10709.1,25220L10728.7,25209.8L10735.9,25209.6L10741.1,25226.9L10751.6,25258.8L10754.2,25261.1L10754.9,25339.6L10741.1,25334.5L10735.3,25338.8L10730,25336.7L10714.3,25344.2L10696.7,25356.6L10654.9,25398.5L10649,25388.2L10639.2,25384.5L10639.2,25321.4L10643.1,25313.7L10635.3,25311.1L10639.2,25294.7L10634.6,25282.8L10639.2,25275.2L10634,25270.9Z","bbox":[10634,25209.6,10754.9,25398.5]},{"name":"Imperial","d":"M11635.7,26305.2L11747.4,26305L11752.6,26304.6L11826.8,26303.9L11900.9,26303.5L11897.7,26307.3L11882.6,26309.7L11887.9,26319.2L11882,26331.4L11891.8,26339.1L11890.5,26365.6L11885.9,26378.1L11895.1,26390.8L11897,26387.7L11905.5,26392.3L11910.1,26389.9L11921.2,26391.9L11927.1,26411.9L11930.3,26416.7L11929.7,26431.5L11917.9,26443.2L11919.2,26450.6L11902.9,26455.4L11887.2,26453L11884,26458.8L11816,26464.3L11748,26469.9L11631.7,26480.5L11631.7,26381.7L11636.3,26381.7Z","bbox":[11631.7,26303.5,11930.3,26480.5]},{"name":"Calaveras","d":"M10909.7,25160.9L10909.7,25175.5L10918.9,25178.7L10894.7,25189.3L10884.9,25203.4L10875.7,25213L10860.7,25238.9L10839.8,25269.5L10837.8,25276L10828.7,25278.2L10824.1,25285L10828.7,25288.1L10824.8,25296.3L10807.8,25311.1L10803.9,25317.9L10763.4,25272.5L10754.2,25261.1L10751.6,25258.8L10741.1,25226.9L10759.4,25227.9L10775.8,25212.6L10807.8,25199L10811,25188.7L10826.7,25181.1L10832,25175.3L10839.1,25175.5L10847,25169.3L10852.9,25172.1L10871.8,25168.9L10886.2,25163.1L10894.7,25164.5Z","bbox":[10741.1,25160.9,10918.9,25317.9]},{"name":"Butte","d":"M10660.8,24774.5L10667.3,24774.5L10666.6,24783.1L10673.8,24790.1L10664,24806.8L10666,24820.5L10665.3,24841.1L10675.1,24845L10676.4,24851.9L10688.9,24862.5L10702.6,24881.6L10709.8,24885L10715.7,24898.6L10726.8,24906L10720.9,24913.1L10713,24915.9L10711.7,24924.4L10696.7,24922.6L10696.7,24925.8L10684.9,24924.4L10683.6,24934.5L10679.1,24938.2L10679.7,24946.5L10672.5,24960.9L10666.6,24966.7L10654.2,24968.1L10652.3,24972L10637.9,24974.8L10629.4,24971.6L10626.8,24977L10626.1,24974.8L10575.2,24975.2L10578.4,24956.4L10582.4,24940.8L10581,24926.6L10585,24920.2L10559.5,24921L10558.2,24915.3L10560.8,24895L10559.5,24888.5L10569.3,24882.2L10566,24873L10561.4,24873.2L10550.3,24858.6L10545.8,24848.4L10550.3,24838.2L10594.1,24838L10603.9,24832.7L10604.6,24825.2L10612.4,24814.4L10622.9,24814.8L10624.8,24804.4L10632,24796.8L10634,24786.6L10647.7,24786.6L10658.2,24781.5Z","bbox":[10545.8,24774.5,10726.8,24977]},{"name":"Madera","d":"M10824.1,25498.5L10835.9,25486.5L10881,25471.2L10903.2,25470.4L10913,25466.7L10965.9,25413.2L10986.2,25413L10986.2,25403.2L10992.7,25403L10992.7,25395.5L10998.6,25395.5L10998.6,25380.3L11048.2,25330.3L11055.4,25339.2L11065.2,25345L11068.5,25339.8L11082.2,25340.4L11092.7,25351.9L11098.5,25364.3L11100.5,25374.6L11047.6,25428.2L11043.7,25437L11045,25460.8L11034.5,25474.4L11026.7,25471.2L11016.9,25483.4L11015.6,25476.9L11009,25479.3L11004.5,25475.5L11001.8,25482.2L11007.1,25484.6L11002.5,25493.4L10994.7,25492.4L10992,25502.4L10986.2,25499.1L10982.9,25506.5L10977,25507.5L10969.8,25515.3L10971.1,25520.8L10960.7,25532.3L10956.8,25542.7L10943.7,25540.8L10933.2,25546.4L10925.4,25544.9L10917.6,25550.7L10908.4,25548.4L10881,25561.1L10855.5,25557.6L10855.5,25551.7L10839.8,25539.8L10840.5,25528.8L10830,25506.9Z","bbox":[10824.1,25330.3,11100.5,25561.1]},{"name":"Ventura","d":"M11026,26173.2L11031.2,26176.4L11038.4,26173.8L11038.4,26179.4L11027.3,26180.2L11021.4,26176.2ZM11017.5,26096.6L11023.4,26090.6L11024.1,26077.5L11024.1,25980.7L11035.2,25980.7L11035.2,25985.4L11054.1,25985.4L11054.1,25990.4L11060.7,25990.2L11060.7,25999.9L11109,26000.3L11109,26005.1L11126,26005.1L11167.8,26108.4L11171.7,26126.3L11165.2,26127.5L11165.2,26142.6L11143,26142.6L11115.5,26163L11114.9,26169.6L11088.7,26157.9L11080.9,26157.5L11065.2,26147.5L11054.1,26120.9L11047.6,26119L11036.5,26108.9L11033.9,26109.5L11020.8,26097.2ZM10999.2,26337.2L11008.4,26335.9L11021.4,26342.5L11026.7,26348.2L11018.2,26351.1L11005.1,26347.1Z","bbox":[10999.2,25980.7,11171.7,26351.1]},{"name":"Orange","d":"M11265.8,26235.9L11269.7,26232.5L11271.1,26222.8L11281.5,26207.3L11291.3,26200.2L11291.3,26191.5L11325.9,26191.3L11346.2,26207.9L11363.2,26230.1L11371,26232.7L11371.7,26243.1L11382.1,26244.6L11393.9,26254.4L11375.6,26281.6L11376.2,26288L11376.2,26295.6L11363.2,26299L11360.6,26313.6L11354,26304.3L11344.2,26297.3L11338.4,26297.7L11325.9,26279.9L11308.9,26268.8L11299.8,26266L11286.7,26255.3L11275,26242.9Z","bbox":[11265.8,26191.3,11393.9,26313.6]},{"name":"Kern","d":"M10887.5,25782.4L10947.3,25782.3L11007.1,25782.4L11073.7,25782.2L11140.4,25782.2L11218.1,25782.2L11274.3,25781.8L11285.4,25782.4L11300.5,25783L11300.5,25780.5L11353.4,25780.7L11353.4,25800.1L11350.1,25806.7L11356.6,25806.7L11353.4,25813.2L11354,25858.2L11354,25998.2L11347.5,25998L11227.3,25998.8L11131.2,25999.2L11126,26005.1L11109,26005.1L11109,26000.3L11060.7,25999.9L11060.7,25990.2L11054.1,25990.4L11054.1,25985.4L11035.2,25985.4L11035.2,25980.7L11024.1,25980.7L11018.8,25980.7L11018.8,25941.5L11015.6,25938.3L11002.5,25939.2L11003.8,25918.6L10983.5,25919.7L10983.5,25900.2L10957.4,25900L10957.4,25880.5L10944.3,25880.5L10944.3,25860.9L10923.4,25860.7L10916.9,25847.5L10907.1,25841.3L10907.1,25821.5L10887.5,25821.7Z","bbox":[10887.5,25780.5,11356.6,26005.1]},{"name":"Contra Costa","d":"M10509.8,25265.3L10524.9,25266.7L10532.7,25271.9L10547.7,25264.7L10561.4,25263.5L10571.9,25268.3L10583.7,25263.9L10588.9,25271.9L10596.7,25274.8L10606.5,25272.9L10616.3,25264.9L10620.3,25257L10635.3,25257.4L10634,25270.9L10639.2,25275.2L10634.6,25282.8L10639.2,25294.7L10635.3,25311.1L10643.1,25313.7L10639.2,25321.4L10566.7,25343.8L10556.2,25337.5L10558.8,25333.7L10550.3,25325.6L10533.3,25324.2L10526.2,25321.4L10517.7,25307.2L10509.2,25300.8L10501.3,25302.8L10489.6,25301L10480.4,25287.5L10485.7,25289.3L10491.5,25284.2L10491.5,25276.2L10503.9,25276.6Z","bbox":[10480.4,25257,10643.1,25343.8]},{"name":"Kings","d":"M10865.3,25756L10930,25694.1L10930,25644.6L10967.2,25644.4L10968.5,25641.1L10982.2,25637.8L10983.5,25640.5L11000.5,25624.8L11009,25624.8L11008.4,25644.4L11018.2,25644.6L11018.2,25674.3L11008.4,25674.3L11007.1,25704L11007.1,25782.4L10947.3,25782.3L10887.5,25782.4L10883.6,25782.4L10882.3,25775.7L10875.7,25769.9L10879,25765.3L10872.5,25756.2Z","bbox":[10865.3,25624.8,11018.2,25782.4]},{"name":"Mendocino","d":"M10190.3,24810.3L10277.2,24810.1L10277.2,24816L10388.3,24815.8L10390.9,24830.3L10385.7,24832.5L10383.7,24847.4L10387.6,24858.4L10387.6,24870.4L10392.2,24870.4L10396.1,24879.5L10397.4,24910L10396.8,24922.2L10388.3,24925L10372,24924.6L10364.8,24928.1L10362.8,24950.7L10369.3,24967.5L10373.3,24971L10373.3,24981.3L10377.2,24991.2L10368,25005.7L10362.2,25005.7L10359.5,25029.7L10364.8,25031.3L10366.1,25041.6L10371.3,25047.2L10379.1,25047.2L10381.8,25062.3L10385.7,25069.9L10396.1,25070.9L10395.5,25074.4L10409.2,25081.6L10361.5,25081L10351.7,25084L10351.7,25091.2L10309.2,25091.8L10309.2,25098.6L10285.7,25098.2L10279.2,25100.7L10257.6,25080.6L10241.9,25057.3L10251.1,25041.6L10250.4,25033.1L10241.3,25007.7L10230.8,24982.9L10226.2,24961.7L10228.2,24941.6L10236.7,24914.9L10233.4,24904.3L10233.4,24891.1L10224.3,24872.4L10221.7,24850.5L10211.2,24843.1L10207.3,24831.9Z","bbox":[10190.3,24810.1,10409.2,25100.7]},{"name":"Sonoma","d":"M10279.2,25100.7L10285.7,25098.2L10309.2,25098.6L10309.2,25091.8L10351.7,25091.2L10351.7,25084L10361.5,25081L10409.2,25081.6L10422.3,25092.2L10432.7,25114.1L10440.6,25115.1L10444.5,25124.1L10441.2,25140.3L10445.8,25149.1L10459.5,25158.5L10462.1,25170.3L10470.6,25174.3L10468,25180.9L10477.2,25191.3L10475.2,25194.1L10487,25208.6L10485,25214L10491.5,25222L10494.8,25234.3L10490.9,25242.7L10484.3,25243.1L10486.3,25246.2L10478.5,25252L10469.3,25253.8L10454.9,25235.9L10440.6,25237.3L10423.6,25231.3L10392.9,25204.8L10382.4,25205.8L10375.9,25210.6L10364.8,25209.2L10364.1,25195.9L10353,25174.7L10339.9,25164.5L10330.8,25160.7L10316.4,25147.9L10292.2,25112.7Z","bbox":[10279.2,25081,10494.8,25253.8]},{"name":"Yuba","d":"M10626.8,24977L10629.4,24971.6L10637.9,24974.8L10652.3,24972L10654.2,24968.1L10666.6,24966.7L10672.5,24960.9L10679.7,24946.5L10679.1,24938.2L10683.6,24934.5L10684.9,24924.4L10696.7,24925.8L10696.7,24922.6L10711.7,24924.4L10713,24915.9L10720.9,24913.1L10726.8,24906L10739.2,24896L10735.9,24915.1L10730,24920.2L10734.6,24925.6L10736.6,24954.6L10725.5,24953.8L10717.6,24957.2L10703.2,24972.2L10700.6,24980.3L10692.1,24982.5L10689.5,24992.4L10689.5,25038.4L10684.9,25034.1L10673.8,25039L10665.3,25047.4L10651.6,25048.4L10641.8,25053L10635.9,25065.5L10629.4,25032.9L10634,25025.5L10628.1,25003.7L10628.7,24992.8L10624.8,24985.1Z","bbox":[10624.8,24896,10739.2,25065.5]},{"name":"Merced","d":"M10699.3,25477.9L10747,25429.6L10743.7,25417.2L10852.2,25363.5L10871.8,25403.8L10874.4,25417L10889.5,25442L10890.1,25448.8L10907.1,25458.7L10913,25466.7L10903.2,25470.4L10881,25471.2L10835.9,25486.5L10824.1,25498.5L10813.7,25508.9L10815,25519.4L10803.2,25519.2L10755.5,25567.7L10752.9,25565L10715,25545.8L10713,25539.2L10704.5,25528L10698,25525.3L10701.3,25517.5L10696,25512.4L10696,25502.8L10702.6,25493L10696,25488.1Z","bbox":[10696,25363.5,10913,25567.7]},{"name":"Tulare","d":"M11221.4,25566.7L11226,25575.5L11220.1,25578.6L11228.6,25593.3L11234.5,25598.7L11233.8,25608.8L11241.6,25614.5L11242.3,25626.7L11248.2,25637.4L11260.6,25640L11258,25647.5L11268.4,25658.6L11263.9,25667.1L11268.4,25688.1L11276.3,25699.3L11274.3,25713.1L11277.6,25717.1L11280.9,25733L11285.4,25737.3L11283.5,25743.8L11288,25747.7L11290,25764.9L11286.1,25765.8L11285.4,25782.4L11274.3,25781.8L11218.1,25782.2L11140.4,25782.2L11073.7,25782.2L11007.1,25782.4L11007.1,25704L11008.4,25674.3L11018.2,25674.3L11018.2,25644.6L11008.4,25644.4L11009,25624.8L11000.5,25624.8L11020.1,25605.1L11048.9,25605.5L11049.5,25585.8L11107.7,25586.6L11107.7,25567.3Z","bbox":[11000.5,25566.7,11290,25782.4]},{"name":"Sacramento","d":"M10632.7,25206.6L10634.6,25202.2L10645.7,25195.7L10643.8,25179.7L10649,25176.9L10648.3,25170.3L10641.8,25168.5L10639.9,25159.9L10645.1,25158.7L10647.7,25139.7L10639.9,25139.1L10637.9,25130.1L10632.7,25129.7L10625.5,25119.9L10630.7,25108.3L10652.3,25108.5L10715,25113.9L10718.9,25112.7L10735.9,25161.3L10735.9,25209.6L10728.7,25209.8L10709.1,25220L10700,25222.6L10691.5,25220.8L10677.8,25226.3L10666,25225.5L10662.7,25220.2L10652.9,25220.4L10644.4,25234.3L10643.1,25244L10634,25251.4L10635.3,25257.4L10620.3,25257L10616.3,25264.9L10606.5,25272.9L10596.7,25274.8L10588.9,25271.9L10583.7,25263.9L10595.4,25265.1L10605.2,25259L10611.1,25259.4L10615.7,25242.3L10628.7,25233.9Z","bbox":[10583.7,25108.3,10735.9,25274.8]},{"name":"Solano","d":"M10484.3,25243.1L10522.9,25243.3L10519.6,25237.5L10523.5,25229.7L10519,25218.4L10524.2,25216.2L10520.9,25206L10547.1,25206L10542.5,25190.1L10535.3,25179.7L10539.9,25160.1L10548.4,25159.1L10556.2,25165.9L10569.3,25155.5L10584.3,25154.3L10597.4,25157.9L10605.9,25154.5L10614.4,25156.9L10614.4,25206.2L10632.7,25206.6L10628.7,25233.9L10615.7,25242.3L10611.1,25259.4L10605.2,25259L10595.4,25265.1L10583.7,25263.9L10571.9,25268.3L10561.4,25263.5L10547.7,25264.7L10532.7,25271.9L10524.9,25266.7L10509.8,25265.3L10503.9,25254.8L10486.3,25246.2Z","bbox":[10484.3,25154.3,10632.7,25271.9]},{"name":"San Francisco","d":"M10498.1,25328.6L10498.7,25329.2L10498.1,25328.6ZM10487.6,25346.4L10467.4,25346.4L10464.7,25329.7L10473.9,25324.2L10484.3,25322.6L10488.3,25327.4L10492.8,25344.8Z","bbox":[10464.7,25322.6,10498.7,25346.4]},{"name":"Mariposa","d":"M11048.2,25330.3L10998.6,25380.3L10998.6,25395.5L10992.7,25395.5L10992.7,25403L10986.2,25403.2L10986.2,25413L10965.9,25413.2L10913,25466.7L10907.1,25458.7L10890.1,25448.8L10889.5,25442L10874.4,25417L10871.8,25403.8L10852.2,25363.5L10851.6,25352.1L10862.7,25359.8L10866.6,25356.4L10860.1,25342.2L10875.1,25340.4L10879,25333.5L10888.8,25332.1L10889.5,25326.4L10899.3,25329.5L10907.8,25318.9L10918.2,25322.6L10933.9,25333.7L10947,25331.5L10956.8,25335.1L10968.5,25330.9L10986.2,25320.6L10986.2,25316.3L10994.7,25311.9L10999.9,25303.2L11008.4,25303.8L11014.9,25310.7L11026.7,25309.9L11035.8,25316.1Z","bbox":[10851.6,25303.2,11048.2,25466.7]},{"name":"Marin","d":"M10375.9,25210.6L10382.4,25205.8L10392.9,25204.8L10423.6,25231.3L10440.6,25237.3L10454.9,25235.9L10469.3,25253.8L10470.6,25262.5L10467.4,25271.7L10477.2,25281.8L10469.3,25286.8L10466.7,25295.5L10479.1,25306.6L10474.5,25309.4L10467.4,25303.6L10471.9,25317.7L10462.1,25320.8L10456.2,25313.3L10439.3,25301.2L10430.8,25303.6L10415.7,25290.3L10409.2,25279.8L10398.1,25273.3L10387.6,25271.7L10374.6,25278.2L10383.7,25253L10385.7,25243.5L10377.8,25225.1L10382.4,25221.2Z","bbox":[10374.6,25204.8,10479.1,25320.8]},{"name":"Sutter","d":"M10575.2,24975.2L10626.1,24974.8L10626.8,24977L10624.8,24985.1L10628.7,24992.8L10628.1,25003.7L10634,25025.5L10629.4,25032.9L10635.9,25065.5L10641.8,25053L10651.6,25048.4L10665.3,25047.4L10665.3,25063.7L10654.9,25063.9L10654.9,25104.5L10652.3,25108.5L10630.7,25108.3L10632.7,25101.9L10615.7,25101.9L10609.1,25092.4L10609.1,25081.4L10603.9,25076.6L10598,25080L10592.2,25075.4L10594.1,25066.3L10588.2,25064.1L10591.5,25049.2L10590.8,25039L10586.3,25029.9L10579.1,25029.5L10568.6,25004.3L10571.9,24999.9L10568,24990.2Z","bbox":[10568,24974.8,10665.3,25108.5]},{"name":"Lassen","d":"M10680.4,24526.7L10763.4,24526.7L10843.1,24526.5L10922.8,24526.7L10922.8,24631.3L10923.4,24638.3L10923.4,24793.5L10922.8,24873.7L10922.1,24876.3L10919.5,24879.5L10896,24880L10903.2,24859.4L10903.2,24825L10892.7,24818L10886.2,24807.4L10884.2,24790.1L10877.7,24784.9L10860.7,24783.1L10848.3,24775.5L10839.8,24761.6L10834.6,24761.6L10830,24751.4L10817.6,24747.7L10817.6,24742.6L10809.1,24742.6L10803.9,24737.2L10783.6,24735.4L10777.7,24744.4L10764,24753L10764,24763.1L10753.5,24764.9L10750.3,24757.9L10739.8,24757.9L10729.4,24749.5L10729.4,24704.2L10681,24704.4L10682.3,24593.9L10680.4,24593.9Z","bbox":[10680.4,24526.5,10923.4,24880]},{"name":"Riverside","d":"M11935.6,26162.1L11935.6,26173.4L11917.3,26195.3L11921.8,26199L11923.2,26209.4L11919.2,26210.5L11918.6,26220.1L11923.2,26232.2L11924.5,26246.1L11919.2,26248.3L11916.6,26269L11919.2,26277.6L11913.4,26282.1L11901.6,26298.5L11900.9,26303.5L11826.8,26303.9L11752.6,26304.6L11747.4,26305L11635.7,26305.2L11549.4,26304.9L11463.2,26305L11425.3,26303.9L11424.6,26300.1L11401.1,26291.1L11402.4,26288L11376.2,26288L11375.6,26281.6L11393.9,26254.4L11382.1,26244.6L11371.7,26243.1L11371,26232.7L11363.2,26230.1L11346.2,26207.9L11349.5,26196.2L11357.3,26196L11358,26185.8L11367.1,26182.1L11367.1,26172.3L11400.4,26172.1L11401.1,26175.3L11427.9,26175.5L11429.8,26178.7L11481.4,26178.5L11481.4,26172.1L11557.9,26172.3L11666.7,26171.8L11775.5,26172.1L11775.5,26162.4L11855.5,26162.1Z","bbox":[11346.2,26162.1,11935.6,26305.2]},{"name":"Plumas","d":"M10650.3,24704.4L10681,24704.4L10729.4,24704.2L10729.4,24749.5L10739.8,24757.9L10750.3,24757.9L10753.5,24764.9L10764,24763.1L10764,24753L10777.7,24744.4L10783.6,24735.4L10803.9,24737.2L10809.1,24742.6L10817.6,24742.6L10817.6,24747.7L10830,24751.4L10834.6,24761.6L10839.8,24761.6L10848.3,24775.5L10860.7,24783.1L10877.7,24784.9L10884.2,24790.1L10886.2,24807.4L10892.7,24818L10903.2,24825L10903.2,24859.4L10896,24880L10806.5,24880.2L10798.6,24886.9L10785.6,24877.1L10779,24879.3L10774.5,24871.4L10764,24863.7L10752.9,24872L10749.6,24888.5L10739.2,24896L10726.8,24906L10715.7,24898.6L10709.8,24885L10702.6,24881.6L10688.9,24862.5L10676.4,24851.9L10675.1,24845L10665.3,24841.1L10666,24820.5L10664,24806.8L10673.8,24790.1L10666.6,24783.1L10667.3,24774.5L10660.8,24774.5L10660.8,24764.1L10666.6,24765.1L10673.8,24760L10677.1,24744.8L10671.9,24739.5L10678.4,24736.8L10671.2,24729.4L10654.9,24726.8Z","bbox":[10650.3,24704.2,10903.2,24906]},{"name":"Santa Clara","d":"M10538.6,25402L10550.3,25403.6L10568,25401.6L10571.9,25404.8L10582.4,25398.1L10654.9,25398.3L10654.9,25411.9L10657.5,25418.2L10666,25421.3L10663.4,25426.6L10666.6,25437.6L10656.8,25443.9L10657.5,25451.6L10664.7,25460.4L10669.3,25474.8L10675.8,25466.5L10681,25470.6L10689.5,25466.7L10699.3,25477.9L10696,25488.1L10702.6,25493L10696,25502.8L10696,25512.4L10701.3,25517.5L10664.7,25517.5L10658.2,25511.2L10651.6,25512.4L10638.5,25532L10634.6,25531.6L10634.6,25527.1L10622.9,25523.9L10602.6,25497.3L10583.7,25484.8L10578.4,25484.6L10560.1,25475.7L10553,25465.1L10542.5,25457.7L10530.7,25443.3L10523.5,25435.9L10526.8,25434.1L10521.6,25426.2L10524.2,25409.9L10528.8,25405Z","bbox":[10521.6,25398.1,10702.6,25532]},{"name":"Placer","d":"M10665.3,25047.4L10673.8,25039L10684.9,25034.1L10689.5,25038.4L10706.5,25043.4L10715.7,25037.6L10721.5,25043.8L10733.3,25043.2L10742.4,25028.5L10744.4,25020.6L10757.5,25006.5L10764.7,25004.1L10766.6,24998L10776.4,24991.8L10790.1,24978.9L10805.2,24972.6L10863.3,24972.3L10921.5,24972.2L10922.1,25007.7L10922.1,25020L10922.1,25030.7L10896.6,25030.7L10889.5,25039.2L10879,25041L10843.7,25039.8L10837.2,25054.7L10829.3,25062.7L10818.2,25066.5L10805.8,25059.5L10790.1,25045.6L10775.1,25046.4L10766.6,25057.7L10751.6,25055.3L10751.6,25061.5L10733.3,25066.3L10729.4,25082.6L10722.2,25089.6L10722.2,25096.6L10715,25113.9L10652.3,25108.5L10654.9,25104.5L10654.9,25063.9L10665.3,25063.7Z","bbox":[10652.3,24972.2,10922.1,25113.9]},{"name":"San Luis Obispo","d":"M10677.8,25781.1L10719.6,25781.5L10801.6,25781.8L10883.6,25782.4L10887.5,25782.4L10887.5,25821.7L10907.1,25821.5L10907.1,25841.3L10916.9,25847.5L10923.4,25860.7L10944.3,25860.9L10944.3,25880.5L10957.4,25880.5L10957.4,25900L10983.5,25900.2L10983.5,25919.7L11003.8,25918.6L11002.5,25939.2L11015.6,25938.3L11018.8,25941.5L11018.8,25980.7L11007.1,25981.4L10992.7,25969.6L10982.2,25964.6L10968.5,25964.3L10953.5,25957L10948.9,25951.7L10935.9,25945.5L10928,25946.1L10907.1,25933.5L10899.3,25937.5L10899.3,25937.5L10892.1,25941.9L10889.5,25950.3L10884.2,25954L10875.1,25953L10875.1,25953L10861.4,25958L10869.2,25970.6L10868.5,25978.6L10843.7,25961.6L10831.3,25960.4L10809.1,25966.7L10804.5,25964.3L10807.8,25945L10807.1,25931.2L10795.4,25920.5L10786.2,25919.2L10784.3,25923.2L10766.6,25912.7L10759.4,25903.5L10766,25878.4L10764.7,25868.8L10757.5,25858.6L10739.8,25855.9L10722.2,25836.3L10710.4,25816.9L10694.7,25812.1L10683.6,25799.4L10683,25790.7Z","bbox":[10677.8,25781.1,11018.8,25981.4]},{"name":"San Mateo","d":"M10467.4,25346.4L10487.6,25346.4L10494.1,25367.7L10492.8,25373L10510.5,25377.6L10528.1,25393.3L10533.3,25392.4L10538.6,25402L10528.8,25405L10524.2,25409.9L10521.6,25426.2L10526.8,25434.1L10523.5,25435.9L10530.7,25443.3L10530.7,25459.4L10514.4,25459.4L10514.4,25465.1L10500.7,25465.9L10505.3,25484.2L10497.4,25481.8L10496.1,25475.7L10485,25464L10482.4,25451.8L10485.7,25426.4L10477.8,25408.9L10476.5,25398.7L10468.7,25395.9L10464.7,25389.4L10464.1,25376.8L10468.7,25361.2Z","bbox":[10464.1,25346.4,10538.6,25484.2]},{"name":"Mono","d":"M10988.1,25203.4L10994,25194.3L10991.4,25187.9L11002.5,25183.9L11005.8,25163.3L10992,25138.9L10992.7,25124.5L10997.9,25113.5L11045,25155.1L11076.3,25183.1L11089.4,25195.5L11130.6,25231.7L11209,25303L11276.9,25365.5L11317.4,25402.2L11231.5,25402.3L11145.6,25402.8L11141.7,25396.9L11131.9,25399.8L11120.1,25382.7L11109,25381.1L11100.5,25374.6L11098.5,25364.3L11092.7,25351.9L11082.2,25340.4L11068.5,25339.8L11065.2,25345L11055.4,25339.2L11067.8,25326.6L11065.2,25312.7L11065.9,25302.4L11049.5,25291.9L11046.3,25286.4L11048.9,25272.1L11040.4,25259.6L11026.7,25253.2L11023.4,25256.8L11014.3,25243.5L11011,25247.4L10990.1,25233.5L10994.7,25224.4L10986.8,25213.6Z","bbox":[10986.8,25113.5,11317.4,25402.8]},{"name":"San Diego","d":"M11360.6,26313.6L11363.2,26299L11376.2,26295.6L11376.2,26288L11402.4,26288L11401.1,26291.1L11424.6,26300.1L11425.3,26303.9L11463.2,26305L11549.4,26304.9L11635.7,26305.2L11636.3,26381.7L11631.7,26381.7L11631.7,26480.5L11538.9,26489.4L11446.2,26498.7L11444.2,26480.5L11438.3,26469L11433.1,26465.3L11423.9,26469.6L11422,26457.3L11422.6,26444.1L11417.4,26436.5L11423.3,26425.1L11417.4,26395.1L11408.9,26371.4L11403,26361.3L11376.9,26325.2Z","bbox":[11360.6,26288,11636.3,26498.7]},{"name":"Napa","d":"M10444.5,25124.1L10473.9,25115.5L10486.3,25092.4L10490.9,25089.2L10487,25078.2L10494.8,25085L10505.9,25084L10517.7,25116.7L10528.1,25127.1L10535.3,25143.7L10539.9,25160.1L10535.3,25179.7L10542.5,25190.1L10547.1,25206L10520.9,25206L10524.2,25216.2L10519,25218.4L10523.5,25229.7L10519.6,25237.5L10522.9,25243.3L10484.3,25243.1L10490.9,25242.7L10494.8,25234.3L10491.5,25222L10485,25214L10487,25208.6L10475.2,25194.1L10477.2,25191.3L10468,25180.9L10470.6,25174.3L10462.1,25170.3L10459.5,25158.5L10445.8,25149.1L10441.2,25140.3Z","bbox":[10441.2,25078.2,10547.1,25243.3]},{"name":"Alameda","d":"M10501.3,25302.8L10509.2,25300.8L10517.7,25307.2L10526.2,25321.4L10533.3,25324.2L10550.3,25325.6L10558.8,25333.7L10556.2,25337.5L10566.7,25343.8L10639.2,25321.4L10639.2,25384.5L10649,25388.2L10654.9,25398.5L10654.9,25398.3L10582.4,25398.1L10571.9,25404.8L10568,25401.6L10550.3,25403.6L10546.4,25396.3L10538.6,25392.6L10532,25375.4L10527.5,25353.9L10513.7,25343.2L10512.4,25334.1L10498.7,25329.2L10498.1,25328.6L10503.9,25314.3Z","bbox":[10498.1,25300.8,10654.9,25404.8]},{"name":"Yolo","d":"M10496.8,25064.3L10588.2,25064.1L10594.1,25066.3L10592.2,25075.4L10598,25080L10603.9,25076.6L10609.1,25081.4L10609.1,25092.4L10615.7,25101.9L10632.7,25101.9L10630.7,25108.3L10625.5,25119.9L10632.7,25129.7L10637.9,25130.1L10639.9,25139.1L10647.7,25139.7L10645.1,25158.7L10639.9,25159.9L10641.8,25168.5L10648.3,25170.3L10649,25176.9L10643.8,25179.7L10645.7,25195.7L10634.6,25202.2L10632.7,25206.6L10614.4,25206.2L10614.4,25156.9L10605.9,25154.5L10597.4,25157.9L10584.3,25154.3L10569.3,25155.5L10556.2,25165.9L10548.4,25159.1L10539.9,25160.1L10535.3,25143.7L10528.1,25127.1L10517.7,25116.7L10505.9,25084L10494.8,25085L10487,25078.2L10481.7,25068.9L10485,25063.9Z","bbox":[10481.7,25063.9,10649,25206.6]},{"name":"Lake","d":"M10397.4,24910L10424.9,24909.8L10425.5,24940.6L10424.2,24956.4L10417.7,24973.4L10421,24979.7L10434.7,24990.6L10454.3,24998.6L10464.7,24997.4L10471.9,25005.7L10467.4,25018L10468.7,25033.7L10483,25041.8L10484.3,25055.3L10496.8,25064.3L10485,25063.9L10481.7,25068.9L10487,25078.2L10490.9,25089.2L10486.3,25092.4L10473.9,25115.5L10444.5,25124.1L10440.6,25115.1L10432.7,25114.1L10422.3,25092.2L10409.2,25081.6L10395.5,25074.4L10396.1,25070.9L10385.7,25069.9L10381.8,25062.3L10379.1,25047.2L10371.3,25047.2L10366.1,25041.6L10364.8,25031.3L10359.5,25029.7L10362.2,25005.7L10368,25005.7L10377.2,24991.2L10373.3,24981.3L10373.3,24971L10369.3,24967.5L10362.8,24950.7L10364.8,24928.1L10372,24924.6L10388.3,24925L10396.8,24922.2Z","bbox":[10359.5,24909.8,10496.8,25124.1]},{"name":"Los Angeles","d":"M11177,26293.8L11187.4,26294.7L11205.7,26304.6L11219.4,26308.8L11220.1,26313.4L11230.5,26324.9L11227.3,26332.9L11218.8,26328.2L11201.8,26326.9L11197.9,26320.4L11197.9,26306.5L11184.8,26303.5ZM11176.3,26391.2L11182.2,26390.5L11196.6,26412.3L11222.7,26436.5L11216.2,26435.7L11209,26439.8L11197.9,26431.6L11189.4,26418.2L11180.2,26396.1ZM11126,26005.1L11131.2,25999.2L11227.3,25998.8L11347.5,25998L11347.5,26056.6L11350.1,26105L11351.4,26115.9L11345.5,26143L11335.7,26174.9L11329.2,26174.5L11322.7,26184.9L11325.9,26191.3L11291.3,26191.5L11291.3,26200.2L11281.5,26207.3L11271.1,26222.8L11269.7,26232.5L11265.8,26235.9L11254.7,26231.4L11253.4,26240.3L11239.7,26244.6L11227.9,26241.9L11221.4,26237.2L11211.6,26236.1L11209,26229L11214.9,26222.6L11215.5,26214.5L11206.4,26192.6L11199.2,26180.6L11188.1,26171.1L11165.2,26170.9L11150.8,26172.4L11140.4,26179.2L11131.2,26172.1L11114.9,26169.6L11115.5,26163L11143,26142.6L11165.2,26142.6L11165.2,26127.5L11171.7,26126.3L11167.8,26108.4Z","bbox":[11114.9,25998,11351.4,26439.8]},{"name":"Glenn","d":"M10387.6,24858.4L10469,24858.3L10550.3,24858.6L10561.4,24873.2L10566,24873L10569.3,24882.2L10559.5,24888.5L10560.8,24895L10558.2,24915.3L10559.5,24921L10585,24920.2L10581,24926.6L10582.4,24940.8L10578.4,24956.4L10556.9,24956.4L10556.9,24949.3L10534,24949.1L10534,24956L10424.2,24956.4L10425.5,24940.6L10424.9,24909.8L10397.4,24910L10396.1,24879.5L10392.2,24870.4L10387.6,24870.4Z","bbox":[10387.6,24858.3,10585,24956.4]},{"name":"Santa Cruz","d":"M10530.7,25443.3L10542.5,25457.7L10553,25465.1L10560.1,25475.7L10578.4,25484.6L10583.7,25484.8L10602.6,25497.3L10622.9,25523.9L10634.6,25527.1L10634.6,25531.6L10626.1,25528.6L10623.5,25532.7L10613.1,25526.9L10597.4,25534.7L10592.8,25542.5L10583.7,25524.1L10575.8,25515.7L10569.3,25513.6L10563.4,25519L10539.2,25518.7L10520.9,25505.3L10505.3,25484.2L10500.7,25465.9L10514.4,25465.1L10514.4,25459.4L10530.7,25459.4Z","bbox":[10500.7,25443.3,10634.6,25542.5]},{"name":"Humboldt","d":"M10182.5,24458.6L10236,24458.8L10236,24479L10256.3,24478.8L10285.1,24478.6L10290.3,24482.6L10296.8,24516.3L10302,24527.7L10298.1,24535L10293.5,24554.5L10298.8,24556.4L10302,24566.5L10294.9,24579.2L10294.9,24585L10286.4,24591.4L10273.9,24583.5L10263.5,24588.7L10272,24605.7L10277.9,24635.2L10277.2,24644.9L10277.2,24810.1L10190.3,24810.3L10179.9,24803.5L10179.9,24794.8L10174.6,24786L10160.3,24779.4L10128.2,24748.5L10130.8,24735.6L10128.2,24721.2L10119.7,24706L10125.6,24685.9L10134.8,24663.4L10162.2,24608.8L10169.4,24589.1L10174,24564.5L10166.1,24556.8L10165.5,24536.7L10168.1,24536.2L10175.3,24515.7L10181.2,24480.5Z","bbox":[10119.7,24458.6,10302,24810.3]},{"name":"Modoc","d":"M10659.5,24328.9L10733.9,24329.7L10762.7,24329.5L10862.7,24329.7L10922.8,24329.3L10922.8,24329.5L10922.8,24526.7L10843.1,24526.5L10763.4,24526.7L10680.4,24526.7L10659.5,24526.9L10658.8,24467.1L10658.8,24382.9L10657.5,24382.9L10657.5,24340.4Z","bbox":[10657.5,24328.9,10922.8,24526.9]}]};
+var SVGNS = 'http://www.w3.org/2000/svg';
+var WORLD = CA_MAP.world;
+// Satellite imagery: Esri World Imagery (free, no API key; needs internet; attribution shown on map)
+var TILE_URL = 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}';
+var satOn = false, tileEls = {}, tileOK = 0, tileFail = 0, keepKeys = {}, tileTimer = null, targetView = null;
 
-  fetch('https://raw.githubusercontent.com/codeforamerica/click_that_hood/master/public/data/california-counties.geojson')
-    .then(function(r) { if(!r.ok) throw new Error('HTTP '+r.status); return r.json(); })
-    .then(function(geojson) {
-      geojsonLayer = L.geoJSON(geojson, {
-        style: function(f) { return styleCounty(f.properties.name); },
-        onEachFeature: function(feature, layer) {
-          var name = feature.properties.name;
-          layer.bindTooltip(name, {permanent:false, direction:'center', className:'county-tip'});
-          layer.on({
-            mouseover: function(e) { if(name!==selCounty) e.target.setStyle({fillColor:'#b8d4e8',weight:2,fillOpacity:0.45}); },
-            mouseout:  function(e) { if(name!==selCounty) geojsonLayer.resetStyle(e.target); },
-            click:     function()  { document.getElementById('county-sel').value=name; onCountyChange(); }
-          });
-        }
-      }).addTo(leafMap);
-    })
-    .catch(function(err) { console.warn('County boundaries unavailable:', err.message); });
-
-  setTimeout(function() { leafMap.invalidateSize(); }, 150);
+function findCounty(name) {
+  for (var i = 0; i < CA_MAP.counties.length; i++) {
+    if (CA_MAP.counties[i].name === name) return CA_MAP.counties[i];
+  }
+  return null;
 }
 
-function styleCounty(name) {
-  var sel = (name === selCounty);
-  return { fillColor:sel?'#1a6fa8':'#e0eaf2', weight:sel?2.5:0.8, color:sel?'#0d4a75':'#aabbcc', fillOpacity:sel?0.55:0.3 };
+function initMap() {
+  var svg = document.getElementById('ca-svg');
+  var wrap = document.getElementById('map-wrap');
+  var tip = document.getElementById('map-tip');
+
+  var tiles = document.createElementNS(SVGNS, 'g');   // satellite tiles (below the outlines)
+  tiles.id = 'tile-layer';
+  svg.appendChild(tiles);
+
+  var g = document.createElementNS(SVGNS, 'g');
+  g.id = 'county-layer';
+  CA_MAP.counties.forEach(function(c) {
+    var p = document.createElementNS(SVGNS, 'path');
+    p.setAttribute('d', c.d);
+    p.setAttribute('class', 'cty');
+    p.addEventListener('mouseenter', function() {
+      tip.textContent = c.name;
+      tip.style.display = 'block';
+    });
+    p.addEventListener('mousemove', function(e) {
+      var r = wrap.getBoundingClientRect();
+      tip.style.left = (e.clientX - r.left + 12) + 'px';
+      tip.style.top  = (e.clientY - r.top  + 14) + 'px';
+    });
+    p.addEventListener('mouseleave', function() { tip.style.display = 'none'; });
+    p.addEventListener('click', function() {
+      document.getElementById('county-sel').value = c.name;
+      onCountyChange();
+    });
+    g.appendChild(p);
+    countyEls[c.name] = p;
+  });
+  svg.appendChild(g);
+
+  resetMapView(true);
+  setBasemap('sat');                       // satellite is the only basemap
+  window.addEventListener('resize', function() {
+    if (selCounty) zoomToCounty(selCounty, true); else resetMapView(true);
+  });
+}
+
+// Animate the SVG viewBox to a target {x,y,w,h}
+function setView(target, instant) {
+  var svg = document.getElementById('ca-svg');
+  targetView = target;
+  if (viewAnim) cancelAnimationFrame(viewAnim);
+  if (satOn) updateTiles(target);             // start loading tiles for where we are heading
+  function apply(v) { svg.setAttribute('viewBox', v.x + ' ' + v.y + ' ' + v.w + ' ' + v.h); }
+  if (instant || !curView) { curView = target; apply(target); return; }
+  var from = curView, t0 = null, dur = 450;
+  function step(ts) {
+    if (t0 === null) t0 = ts;
+    var k = Math.min(1, (ts - t0) / dur);
+    var e = k < .5 ? 2*k*k : 1 - Math.pow(-2*k + 2, 2) / 2;   // ease in-out
+    curView = {
+      x: from.x + (target.x - from.x) * e, y: from.y + (target.y - from.y) * e,
+      w: from.w + (target.w - from.w) * e, h: from.h + (target.h - from.h) * e
+    };
+    apply(curView);
+    if (k < 1) viewAnim = requestAnimationFrame(step); else curView = target;
+  }
+  viewAnim = requestAnimationFrame(step);
+}
+
+// Fit a box (in map units) into the container's aspect ratio
+function fitBox(cx, cy, w, h) {
+  var svg = document.getElementById('ca-svg');
+  var aspect = (svg.clientWidth || 1) / (svg.clientHeight || 1);
+  if (w / h < aspect) w = h * aspect; else h = w / aspect;
+  return { x: cx - w / 2, y: cy - h / 2, w: w, h: h };
+}
+
+function resetMapView(instant) {
+  var f = CA_MAP.full;
+  setView(fitBox((f[0] + f[2]) / 2, (f[1] + f[3]) / 2, (f[2] - f[0]) * 1.1, (f[3] - f[1]) * 1.1), instant);
+}
+
+function zoomToCounty(name, instant) {
+  var c = findCounty(name);
+  if (!c) return;
+  var b = c.bbox;
+  var bw = Math.max(b[2] - b[0], 40), bh = Math.max(b[3] - b[1], 40);
+  setView(fitBox((b[0] + b[2]) / 2, (b[1] + b[3]) / 2, bw * 2.2, bh * 2.2), instant);
 }
 
 function highlightCounty(name) {
-  if (!geojsonLayer) return;
-  geojsonLayer.eachLayer(function(layer) {
-    var n = layer.feature.properties.name;
-    layer.setStyle(styleCounty(n));
-    if (n === name) {
-      layer.bringToFront();
-      leafMap.fitBounds(layer.getBounds(), {padding:[50,50],maxZoom:10});
-    }
+  Object.keys(countyEls).forEach(function(n) {
+    countyEls[n].classList.toggle('sel', n === name);
   });
-  var info = document.getElementById('map-info');
-  info.style.display = 'block';
+  var el = countyEls[name];
+  if (el) el.parentNode.appendChild(el);   // draw selected county on top
+  zoomToCounty(name);
+  document.getElementById('map-info').style.display = 'block';
   document.getElementById('mi-name').textContent = name + ' County';
   document.getElementById('mi-yr').textContent   = 'Year ' + selYear;
+}
+
+// ───────── Basemap: Outline (offline) / Satellite (online tiles) ─────────
+function setBasemap(mode) {
+  satOn = (mode === 'sat');
+  document.getElementById('map').classList.toggle('sat', satOn);
+  document.getElementById('map-attrib').style.display = satOn ? 'block' : 'none';
+  document.getElementById('map-note').style.display = 'none';
+  var layer = document.getElementById('tile-layer');
+  if (satOn) {
+    tileOK = 0; tileFail = 0;
+    updateTiles(targetView || curView);
+  } else {
+    while (layer.firstChild) layer.removeChild(layer.firstChild);
+    tileEls = {}; keepKeys = {};
+  }
+}
+
+// Place the Web Mercator tiles that cover view v, at a zoom level matching the screen size
+function updateTiles(v) {
+  if (!satOn || !v) return;
+  var svg = document.getElementById('ca-svg');
+  var layer = document.getElementById('tile-layer');
+  var s = Math.min((svg.clientWidth || 1) / v.w, (svg.clientHeight || 1) / v.h);  // px per unit
+  var z = Math.max(5, Math.min(13, Math.round(Math.log(s * 256) / Math.LN2)));
+  var ts, x0, x1, y0, y1;
+  for (;;) {
+    ts = WORLD / Math.pow(2, z);
+    x0 = Math.floor(v.x / ts); x1 = Math.floor((v.x + v.w) / ts);
+    y0 = Math.floor(v.y / ts); y1 = Math.floor((v.y + v.h) / ts);
+    if ((x1 - x0 + 1) * (y1 - y0 + 1) <= 60 || z <= 5) break;
+    z--;
+  }
+  var maxIdx = Math.pow(2, z) - 1;
+  keepKeys = {};
+  for (var ty = y0; ty <= y1; ty++) {
+    for (var tx = x0; tx <= x1; tx++) {
+      if (tx < 0 || ty < 0 || tx > maxIdx || ty > maxIdx) continue;
+      var key = z + '/' + tx + '/' + ty;
+      keepKeys[key] = true;
+      if (tileEls[key]) continue;
+      tileEls[key] = makeTile(key, z, tx, ty, ts, layer);
+    }
+  }
+  // Drop tiles from older views once the new ones have had time to appear
+  clearTimeout(tileTimer);
+  tileTimer = setTimeout(function() {
+    Object.keys(tileEls).forEach(function(k) {
+      if (!keepKeys[k]) { var el = tileEls[k]; if (el.parentNode) el.parentNode.removeChild(el); delete tileEls[k]; }
+    });
+  }, 900);
+}
+
+function makeTile(key, z, tx, ty, ts, layer) {
+  var im = document.createElementNS(SVGNS, 'image');
+  im.setAttribute('x', tx * ts);
+  im.setAttribute('y', ty * ts);
+  im.setAttribute('width',  ts + 0.4);          // tiny overlap hides hairline seams
+  im.setAttribute('height', ts + 0.4);
+  im.setAttribute('preserveAspectRatio', 'none');
+  im.addEventListener('load', function() { tileOK++; });
+  im.addEventListener('error', function() {
+    tileFail++;
+    if (im.parentNode) im.parentNode.removeChild(im);
+    delete tileEls[key];
+    if (tileOK === 0 && tileFail >= 3 && satOn) {
+      document.getElementById('map-note').style.display = 'block';   // offline: outlines only
+      document.getElementById('map-attrib').style.display = 'none'; // no imagery shown, so no credit
+    }
+  });
+  im.setAttribute('href', TILE_URL.replace('{z}', z).replace('{y}', ty).replace('{x}', tx));
+  layer.appendChild(im);
+  return im;
 }
 
 // ═══════════════════════════════════════════════════════
@@ -486,19 +711,7 @@ function populateInputs(county, year) {
   var d = DATA[county] && DATA[county][String(year)];
   if (!d) return;
 
-  // ICA: stored in km² → display in acres
-  ICA_COLS.forEach(function(col) {
-    var el = document.getElementById('ica-' + col);
-    if (el) el.value = ((d[col] || 0) * KM2_TO_ACRES).toFixed(1);
-  });
-
-  // Climate: each field has its own fromData() converter
-  CLIM.forEach(function(c) {
-    var el = document.getElementById('clim-' + c.key);
-    if (!el) return;
-    var displayVal = c.fromData(d);
-    el.value = displayVal.toFixed(c.isPr ? 1 : (c.isTemp ? 2 : 4));
-  });
+  writeModelFeatures(recordFeatures(d));
 }
 
 function updateCountyCard(county, year) {
@@ -511,7 +724,7 @@ function updateCountyCard(county, year) {
 
   var total = 0, maxV = 0, topCrop = '—';
   ICA_COLS.forEach(function(col) {
-    var v = (d[col] || 0) * KM2_TO_ACRES;   // show total in acres
+    var v = (d[col] || 0) * areaFactor();   // total in the selected area unit
     total += v;
     if (d[col] > maxV) { maxV = d[col]; topCrop = CROP_NAMES[col.replace('_ICA','')] || col; }
   });
@@ -546,23 +759,7 @@ function runPrediction() {
   lbl.textContent  = 'Computing…';
 
   try {
-    var features = [];
-
-    // ICA: user entered acres → convert to km² for model
-    ICA_COLS.forEach(function(col) {
-      var el      = document.getElementById('ica-' + col);
-      var acres   = el ? (parseFloat(el.value) || 0) : 0;
-      var km2     = acres / KM2_TO_ACRES;
-      features.push(km2);
-    });
-
-    // Climate: each field's toModel() handles its own conversion
-    CLIM.forEach(function(c) {
-      var el          = document.getElementById('clim-' + c.key);
-      var displayVal  = el ? (parseFloat(el.value) || 0) : 0;
-      var modelVal    = c.toModel(displayVal);
-      features.push(modelVal);
-    });
+    var features = readModelFeatures();
 
     var km3 = Math.max(0, annPredict(features));
     displayResult(km3);
@@ -578,12 +775,26 @@ function runPrediction() {
 }
 
 function displayResult(km3) {
-  document.getElementById('rb-val').innerHTML =
-    '<strong>' + km3.toFixed(4) + '</strong><span class="rb-unit">km³</span>';
+  lastKm3 = km3;
+  var af = km3 * 810713;                       // acre-ft
+  var main, mu, v1, l1, v2, l2, v3, l3;
+  if (UNITS === 'imperial') {
+    main = (af/1000).toFixed(1);  mu = 'K acre-ft';
+    v1 = (af/1e6).toFixed(3);     l1 = 'Million acre-ft';
+    v2 = (km3*264.172).toFixed(1);l2 = 'Billion gallons';
+    v3 = (km3*0.239913).toFixed(4);l3 = 'Cubic miles';
+  } else {
+    main = km3.toFixed(4);        mu = 'km³';
+    v1 = (km3*1000).toFixed(2);   l1 = 'MCM (million m³)';
+    v2 = (km3*1e5).toFixed(0);    l2 = 'Hectare-metres';
+    v3 = (km3*1e9).toFixed(0);    l3 = 'Cubic metres (×1000)'.replace(' (×1000)','');
+    v3 = (km3*1e9).toExponential(3);
+  }
+  document.getElementById('rb-val').innerHTML = '<strong>' + main + '</strong><span class="rb-unit">' + mu + '</span>';
   document.getElementById('rb-metrics').style.display = 'flex';
-  document.getElementById('m-mcm').textContent = (km3*1000).toFixed(2);
-  document.getElementById('m-m3').textContent  = (km3*1000).toFixed(2);
-  document.getElementById('m-af').textContent  = (km3*810713/1000).toFixed(1);
+  document.getElementById('m-mcm').textContent = v1; document.getElementById('l-mcm').textContent = l1;
+  document.getElementById('m-m3').textContent  = v2; document.getElementById('l-m3').textContent  = l2;
+  document.getElementById('m-af').textContent  = v3; document.getElementById('l-af').textContent  = l3;
   document.getElementById('m-cy').textContent  = selCounty + ' / ' + selYear;
 }
 </script>
